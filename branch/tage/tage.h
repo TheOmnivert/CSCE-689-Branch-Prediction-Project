@@ -1,6 +1,7 @@
 #ifndef BRANCH_TAGE_H
 #define BRANCH_TAGE_H
 
+#include <array>
 #include <vector>
 #include <bitset>
 #include "modules.h"
@@ -11,8 +12,8 @@ class tage : public champsim::modules::branch_predictor {
     static constexpr int TAGGED_TABLE_SIZE = 2048;
     static constexpr int MAX_HISTORY = 130;
 
-    const int history_lengths[NUM_TABLES] = {5, 15, 44, 130};
-    const int tag_widths[NUM_TABLES] = {8, 9, 10, 11};
+    static constexpr std::array<int, NUM_TABLES> history_lengths = {5, 15, 44, 130};
+    static constexpr std::array<int, NUM_TABLES> tag_widths = {8, 9, 10, 11};
 
     struct TaggedEntry {
         int8_t pred_counter = 0;

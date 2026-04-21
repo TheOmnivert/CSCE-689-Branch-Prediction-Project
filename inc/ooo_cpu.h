@@ -42,7 +42,7 @@
 #include "modules.h"
 #include "operable.h"
 #include "register_allocator.h"
-#include "util/lru_table.h"
+#include "msl/lru_table.h"
 #include "util/to_underlying.h"
 
 class CACHE;
@@ -107,7 +107,7 @@ public:
     champsim::data::bits shamt;
     auto operator()(champsim::address val) const { return val.slice_upper(shamt); }
   };
-  using dib_type = champsim::lru_table<champsim::address, dib_shift, dib_shift>;
+  using dib_type = champsim::msl::lru_table<champsim::address, dib_shift, dib_shift>;
   dib_type DIB;
 
   // reorder buffer, load/store queue, register file

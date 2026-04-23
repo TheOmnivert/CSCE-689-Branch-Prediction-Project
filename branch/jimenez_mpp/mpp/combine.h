@@ -63,6 +63,23 @@
 
 using namespace std;
 
+// Budget controls for Jimenez MPP in ChampSim.
+// Defaults match the requested low-budget configuration:
+//  - total predictor budget: 24KB
+//  - internal TAGE-SC-L share: 8KB
+//  - Bloom filter bits excluded from budget accounting
+#ifndef JIMENEZ_MPP_TOTAL_BUDGET_KB
+#define JIMENEZ_MPP_TOTAL_BUDGET_KB 24
+#endif
+
+#ifndef JIMENEZ_MPP_TAGE_BUDGET_KB
+#define JIMENEZ_MPP_TAGE_BUDGET_KB 8
+#endif
+
+#ifndef JIMENEZ_MPP_COUNT_BLOOM_IN_BUDGET
+#define JIMENEZ_MPP_COUNT_BLOOM_IN_BUDGET 0
+#endif
+
 // provide a Bloom filter implementation for keeping track of branch facts
 
 struct bloom_filter {
@@ -226,9 +243,9 @@ public:
 			printf ("MPP history size: %g KB\n", history_bits / 8192.0);
 		}
 
-		// add the 64KB of TAGE-SC-L state from provided code
+		// add the configured TAGE-SC-L budget share
 
-		predictor_size += 65536 * 8; 
+		predictor_size += JIMENEZ_MPP_TAGE_BUDGET_KB * 1024 * 8;
 		if (!printed) {
 			printf ("TAGE-SC-L size: %g KB\n", (predictor_size - history_bits) / 8192.0);
 		}
@@ -241,9 +258,11 @@ public:
 			printf ("Bloom filter size %g KB\n", et->kb() + ent->kb());
 			fflush (stdout);
 		}
-		// add in the size of the Bloom filters
+		// add in the size of the Bloom filters (optionally excluded from budget accounting)
 
-		predictor_size += et->kb() * 8192 + ent->kb() * 8192;
+		if (JIMENEZ_MPP_COUNT_BLOOM_IN_BUDGET) {
+			predictor_size += et->kb() * 8192 + ent->kb() * 8192;
+		}
 
 		// initialize slopes and biases to default values
 
@@ -318,14 +337,19 @@ public:
 			printf ("number of bits left is %d bits\n", predictor_size);
 			printf ("we can afford ");
 		}
-		int total_bits = 192 * 1024 * 8; // from CBP2025 rules, 192KB
+		int total_bits = JIMENEZ_MPP_TOTAL_BUDGET_KB * 1024 * 8;
 		total_bits -= predictor_size;
 		extern int nentriestotal;
 
 		// each table entry is 6 bits so this is how many table entries we can afford
 
 		nentriestotal = total_bits / 6;
+		if (nentriestotal < 0) nentriestotal = 0;
 		if (!printed) {
+			printf ("Total budget: %d KB (Bloom counted: %s)\n",
+				JIMENEZ_MPP_TOTAL_BUDGET_KB,
+				JIMENEZ_MPP_COUNT_BLOOM_IN_BUDGET ? "yes" : "no");
+			printf ("Configured TAGE-SC-L share: %d KB\n", JIMENEZ_MPP_TAGE_BUDGET_KB);
 			printf ("%d entries total\n", nentriestotal);
 			fflush (stdout);
 		}

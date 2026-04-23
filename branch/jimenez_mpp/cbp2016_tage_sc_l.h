@@ -12,6 +12,37 @@
 #include <array>
 #include <iostream>
 
+// Low-budget TAGE sizing profile controls.
+// Default enabled for the requested 24KB total / 8KB TAGE split.
+// Set JIMENEZ_MPP_TAGE_8KB_PROFILE=0 at compile time to restore legacy sizes.
+#ifndef JIMENEZ_MPP_TAGE_8KB_PROFILE
+#define JIMENEZ_MPP_TAGE_8KB_PROFILE 1
+#endif
+
+#if JIMENEZ_MPP_TAGE_8KB_PROFILE
+#define JIMENEZ_LOGBIAS 5
+#define JIMENEZ_LOGINB 5
+#define JIMENEZ_LOGIMNB 6
+#define JIMENEZ_LOGGNB 7
+#define JIMENEZ_LOGPNB 6
+#define JIMENEZ_LOGLNB 7
+#define JIMENEZ_LOGSNB 6
+#define JIMENEZ_LOGTNB 7
+#define JIMENEZ_LOGG 7
+#define JIMENEZ_LOGB 10
+#else
+#define JIMENEZ_LOGBIAS 8
+#define JIMENEZ_LOGINB 8
+#define JIMENEZ_LOGIMNB 9
+#define JIMENEZ_LOGGNB 10
+#define JIMENEZ_LOGPNB 9
+#define JIMENEZ_LOGLNB 10
+#define JIMENEZ_LOGSNB 9
+#define JIMENEZ_LOGTNB 10
+#define JIMENEZ_LOGG 10
+#define JIMENEZ_LOGB 13
+#endif
+
 //parameters of the loop predictor
 #define LOGL 5
 #define WIDTHNBITERLOOP 10  // we predict only loops with less than 1K iterations
@@ -54,7 +85,7 @@ int sctranslate (int c) {
 #define PERCWIDTH 6     //Statistical corrector  counter width 5 -> 6 : 0.6 %
 //The three BIAS tables in the SC component
 //We play with the TAGE  confidence here, with the number of the hitting bank
-#define LOGBIAS 8
+#define LOGBIAS JIMENEZ_LOGBIAS
 int8_t Bias[(1 << LOGBIAS)];
 int8_t BiasSK[(1 << LOGBIAS)];
 int8_t BiasBank[(1 << LOGBIAS)];
@@ -63,14 +94,14 @@ int8_t BiasBank[(1 << LOGBIAS)];
 
 // IMLI-SIC -> Micro 2015  paper: a big disappointment on  CBP2016 traces
 #ifdef IMLI
-#define LOGINB 8        // 128-entry
+#define LOGINB JIMENEZ_LOGINB
 #define INB 1
 int Im[INB] = { 8 };
 int8_t IGEHLA[INB][(1 << LOGINB)] = { {0} };
 
 int8_t *IGEHL[INB];
 
-#define LOGIMNB 9       // 2* 256 -entry
+#define LOGIMNB JIMENEZ_LOGIMNB
 #define IMNB 2
 
 int IMm[IMNB] = { 10, 4 };
@@ -81,7 +112,7 @@ int8_t *IMGEHL[IMNB];
 #endif
 
 //global branch GEHL
-#define LOGGNB 10       // 1 1K + 2 * 512-entry tables
+#define LOGGNB JIMENEZ_LOGGNB
 
 #define GNB 3
 int Gm[GNB] = { 40, 24, 10 };
@@ -91,7 +122,7 @@ int8_t *GGEHL[GNB];
 
 //variation on global branch history
 #define PNB 3
-#define LOGPNB 9         // 1 1K + 2 * 512-entry tables
+#define LOGPNB JIMENEZ_LOGPNB
 
 int Pm[PNB] = { 25, 16, 9 };
 int8_t PGEHLA[PNB][(1 << LOGPNB)] = { {0} };
@@ -99,7 +130,7 @@ int8_t PGEHLA[PNB][(1 << LOGPNB)] = { {0} };
 int8_t *PGEHL[PNB];
 
 //first local history
-#define LOGLNB  10      // 1 1K + 2 * 512-entry tables
+#define LOGLNB  JIMENEZ_LOGLNB
 #define LNB 3
 int Lm[LNB] = { 11, 6, 3 };
 int8_t LGEHLA[LNB][(1 << LOGLNB)] = { {0} };
@@ -109,7 +140,7 @@ int8_t *LGEHL[LNB];
 #define NLOCAL (1<<LOGLOCAL)
 
 // second local history
-#define LOGSNB 9        // 1 1K + 2 * 512-entry tables
+#define LOGSNB JIMENEZ_LOGSNB
 #define SNB 3
 int Sm[SNB] = { 16, 11, 6 };
 int8_t SGEHLA[SNB][(1 << LOGSNB)] = { {0} };
@@ -119,7 +150,7 @@ int8_t *SGEHL[SNB];
 #define NSECLOCAL (1<<LOGSECLOCAL)  //Number of second local histories
 
 //third local history
-#define LOGTNB 10       // 2 * 512-entry tables
+#define LOGTNB JIMENEZ_LOGTNB
 #define TNB 2
 int Tm[TNB] = { 9, 4 };
 int8_t TGEHLA[TNB][(1 << LOGTNB)] = { {0} };
@@ -222,7 +253,7 @@ int SizeTable[NHIST + 1];
 #define MAXHIST 3000
 
 
-#define LOGG 10         /* logsize of the  banks in the  tagged TAGE tables */
+#define LOGG JIMENEZ_LOGG
 #define TBITS 8         //minimum width of the tags  (low history lengths), +4 for high history lengths
 
 
@@ -232,7 +263,7 @@ bool NOSKIP[NHIST + 1];     // to manage the associativity for different history
 
 #define NNN 1           // number of extra entries allocated on a TAGE misprediction (1+NNN)
 #define HYSTSHIFT 2     // bimodal hysteresis shared by 4 entries
-#define LOGB 13         // log of number of entries in bimodal predictor
+#define LOGB JIMENEZ_LOGB
 
 #define PHISTWIDTH 27       // width of the path history used in TAGE
 #define UWIDTH 1        // u counter width on TAGE (2 bits not worth the effort for a 512 Kbits predictor 0.2 %)

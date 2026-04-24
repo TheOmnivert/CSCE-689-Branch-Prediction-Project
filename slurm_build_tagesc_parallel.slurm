@@ -27,6 +27,24 @@ set -euo pipefail
 PROJECT_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
 cd "$PROJECT_DIR"
 
+# Ensure required third-party headers/libs (fmt, cli11, etc.) exist.
+# On fresh HPRC clones, vcpkg_installed may be absent.
+VCPKG_HEADER="$PROJECT_DIR/vcpkg_installed/x64-linux/include/fmt/core.h"
+if [[ ! -f "$VCPKG_HEADER" ]]; then
+  echo "vcpkg dependencies missing; preparing toolchain..."
+  LOCKFILE="$PROJECT_DIR/.vcpkg-install.lock"
+  exec 9>"$LOCKFILE"
+  flock 9
+
+  # Re-check inside lock in case another array task completed setup.
+  if [[ ! -f "$VCPKG_HEADER" ]]; then
+    if [[ ! -x "$PROJECT_DIR/vcpkg/vcpkg" ]]; then
+      "$PROJECT_DIR/vcpkg/bootstrap-vcpkg.sh"
+    fi
+    "$PROJECT_DIR/vcpkg/vcpkg" install --x-install-root="$PROJECT_DIR/vcpkg_installed"
+  fi
+fi
+
 VARIANTS=(24kb 48kb 96kb 192kb 384kb 768kb 1536kb)
 VARIANT="${VARIANTS[$SLURM_ARRAY_TASK_ID]}"
 

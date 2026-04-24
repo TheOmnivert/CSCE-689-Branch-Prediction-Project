@@ -33,37 +33,10 @@ cd "$PROJECT_DIR"
 TRACE_ROOT="${TRACE_ROOT:-$PROJECT_DIR/traces}"
 WARMUP="${WARMUP:-200000000}"
 SIM="${SIM:-500000000}"
-MAX_PARALLEL="${MAX_PARALLEL:-${SLURM_CPUS_ON_NODE:-${SLURM_CPUS_PER_TASK:-1}}}"
 
 if [[ ! -d "$TRACE_ROOT" ]]; then
   echo "ERROR: TRACE_ROOT directory not found: $TRACE_ROOT" >&2
   exit 1
-fi
-
-# Ensure dependencies exist (same logic as build scripts).
-VCPKG_HEADER="$PROJECT_DIR/vcpkg_installed/x64-linux/include/fmt/core.h"
-if [[ ! -f "$VCPKG_HEADER" ]]; then
-  echo "vcpkg dependencies missing; preparing toolchain..."
-  LOCKFILE="$PROJECT_DIR/.vcpkg-install.lock"
-  exec 9>"$LOCKFILE"
-  flock 9
-  if [[ ! -f "$VCPKG_HEADER" ]]; then
-    if [[ ! -x "$PROJECT_DIR/vcpkg/vcpkg" ]]; then
-      "$PROJECT_DIR/vcpkg/bootstrap-vcpkg.sh"
-    fi
-    # Grace toolchains may pair newer GCC with older assembler; force DWARF-4.
-    export CFLAGS="${CFLAGS:-} -gdwarf-4"
-    export CXXFLAGS="${CXXFLAGS:-} -gdwarf-4"
-    export VCPKG_C_FLAGS="${VCPKG_C_FLAGS:-} -gdwarf-4"
-    export VCPKG_CXX_FLAGS="${VCPKG_CXX_FLAGS:-} -gdwarf-4"
-    export VCPKG_C_FLAGS_DEBUG="${VCPKG_C_FLAGS_DEBUG:-} -gdwarf-4"
-    export VCPKG_CXX_FLAGS_DEBUG="${VCPKG_CXX_FLAGS_DEBUG:-} -gdwarf-4"
-    "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed" || {
-      echo "vcpkg install failed. Check detailed logs under:" >&2
-      echo "  $PROJECT_DIR/vcpkg/buildtrees/*/" >&2
-      exit 1
-    }
-  fi
 fi
 
 readarray -t BINARIES < <(
@@ -100,11 +73,10 @@ echo "Traces         : ${#TRACES[@]}"
 echo "Total runs     : $((${#BINARIES[@]} * ${#TRACES[@]}))"
 echo "Warmup instr   : $WARMUP"
 echo "Sim instr      : $SIM"
-echo "Parallel runs  : $MAX_PARALLEL"
+echo "Parallel runs  : Slurm-managed (1 CPU per run)"
 echo "Result root    : $RESULT_ROOT"
 echo "============================================================"
 
-running=0
 total=0
 
 for bin in "${BINARIES[@]}"; do
@@ -117,12 +89,6 @@ for bin in "${BINARIES[@]}"; do
     safe_trace="${safe_trace// /_}"
     out_file="$RESULT_ROOT/$bin_name/${safe_trace}.out"
 
-    # Limit number of concurrently running single-core jobs.
-    while (( running >= MAX_PARALLEL )); do
-      wait -n
-      ((running--))
-    done
-
     srun --exclusive -N1 -n1 -c1 \
       "$bin" \
       --warmup-instructions "$WARMUP" \
@@ -130,7 +96,6 @@ for bin in "${BINARIES[@]}"; do
       "$trace" \
       >"$out_file" 2>&1 &
 
-    ((running++))
     ((total++))
     if (( total % 50 == 0 )); then
       echo "Launched $total runs so far..."

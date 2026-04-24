@@ -27,6 +27,11 @@ set -euo pipefail
 # Optional: pick a partition explicitly.
 ##SBATCH --partition=long
 
+# Load the same GCC toolchain used at build time so that the newer
+# libstdc++ (GLIBCXX_3.4.26+) is available at runtime on compute nodes.
+module load GCCcore/13.3.0
+module load binutils/2.42
+
 PROJECT_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
 cd "$PROJECT_DIR"
 

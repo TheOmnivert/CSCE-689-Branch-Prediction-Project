@@ -41,7 +41,12 @@ fi
 
 if [[ ! -f "$VCPKG_HEADER" ]]; then
   echo "vcpkg dependencies missing; installing x64-linux triplet..."
-  "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed"
+  export VCPKG_MAX_CONCURRENCY="${VCPKG_MAX_CONCURRENCY:-8}"
+  "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed" || {
+    echo "vcpkg install failed. Check detailed logs under:" >&2
+    echo "  $PROJECT_DIR/vcpkg/buildtrees/*/" >&2
+    exit 1
+  }
 fi
 
 rm -f "$PROJECT_DIR/absolute.options"

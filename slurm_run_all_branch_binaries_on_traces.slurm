@@ -51,7 +51,12 @@ if [[ ! -f "$VCPKG_HEADER" ]]; then
     if [[ ! -x "$PROJECT_DIR/vcpkg/vcpkg" ]]; then
       "$PROJECT_DIR/vcpkg/bootstrap-vcpkg.sh"
     fi
-    "$PROJECT_DIR/vcpkg/vcpkg" install --x-install-root="$PROJECT_DIR/vcpkg_installed"
+    export VCPKG_MAX_CONCURRENCY="${VCPKG_MAX_CONCURRENCY:-8}"
+    "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed" || {
+      echo "vcpkg install failed. Check detailed logs under:" >&2
+      echo "  $PROJECT_DIR/vcpkg/buildtrees/*/" >&2
+      exit 1
+    }
   fi
 fi
 

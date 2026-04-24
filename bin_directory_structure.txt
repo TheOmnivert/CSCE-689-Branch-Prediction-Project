@@ -1,0 +1,15 @@
+bin/
+├── champsim_jimenez_mpp_1536kb
+├── champsim_jimenez_mpp_192kb
+├── champsim_jimenez_mpp_24kb
+├── champsim_jimenez_mpp_384kb
+├── champsim_jimenez_mpp_48kb
+├── champsim_jimenez_mpp_768kb
+├── champsim_jimenez_mpp_96kb
+├── champsim_seznec_tagesc_1536kb
+├── champsim_seznec_tagesc_192kb
+├── champsim_seznec_tagesc_24kb
+├── champsim_seznec_tagesc_384kb
+├── champsim_seznec_tagesc_48kb
+├── champsim_seznec_tagesc_768kb
+└── champsim_seznec_tagesc_96kb

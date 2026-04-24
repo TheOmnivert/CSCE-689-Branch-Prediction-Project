@@ -12,8 +12,10 @@
 #SBATCH --job-name=champsim-all-traces-2n
 #SBATCH --time=7-00:00:00
 #SBATCH --nodes=2
+#SBATCH --ntasks=96
 #SBATCH --ntasks-per-node=48
 #SBATCH --cpus-per-task=1
+#SBATCH --exclusive
 #SBATCH --mem=32G
 #SBATCH --output=slurm_champsim_runs_2nodes_%j.out
 #SBATCH --mail-type=ALL
@@ -33,6 +35,19 @@ cd "$PROJECT_DIR"
 TRACE_ROOT="${TRACE_ROOT:-$(dirname "$PROJECT_DIR")/traces}"
 WARMUP="${WARMUP:-200000000}"
 SIM="${SIM:-500000000}"
+ALLOCATED_TASKS="${SLURM_NTASKS:-96}"
+MAX_PARALLEL="${MAX_PARALLEL:-$ALLOCATED_TASKS}"
+
+if (( MAX_PARALLEL < 1 )); then
+  echo "ERROR: MAX_PARALLEL must be >= 1 (got $MAX_PARALLEL)" >&2
+  exit 1
+fi
+
+if (( MAX_PARALLEL > ALLOCATED_TASKS )); then
+  echo "WARNING: MAX_PARALLEL=$MAX_PARALLEL exceeds allocated tasks ($ALLOCATED_TASKS)." >&2
+  echo "         Capping MAX_PARALLEL to $ALLOCATED_TASKS." >&2
+  MAX_PARALLEL="$ALLOCATED_TASKS"
+fi
 
 if [[ ! -d "$TRACE_ROOT" ]]; then
   echo "ERROR: TRACE_ROOT directory not found: $TRACE_ROOT" >&2
@@ -75,11 +90,12 @@ echo "Traces         : ${#TRACES[@]}"
 echo "Total runs     : $((${#BINARIES[@]} * ${#TRACES[@]}))"
 echo "Warmup instr   : $WARMUP"
 echo "Sim instr      : $SIM"
-echo "Parallel runs  : Slurm-managed (1 CPU per run)"
+echo "Parallel runs  : $MAX_PARALLEL (1 CPU per run)"
 echo "Result root    : $RESULT_ROOT"
 echo "============================================================"
 
 total=0
+in_flight=0
 
 for bin in "${BINARIES[@]}"; do
   bin_name="$(basename "$bin")"
@@ -99,13 +115,24 @@ for bin in "${BINARIES[@]}"; do
       >"$out_file" 2>&1 &
 
     ((total++))
+    ((in_flight++))
+
+    # Keep exactly MAX_PARALLEL single-core runs active.
+    if (( in_flight >= MAX_PARALLEL )); then
+      wait -n
+      ((in_flight--))
+    fi
+
     if (( total % 50 == 0 )); then
       echo "Launched $total runs so far..."
     fi
   done
 done
 
-wait
+while (( in_flight > 0 )); do
+  wait -n
+  ((in_flight--))
+done
 
 echo "All runs completed."
 echo "Results available under: $RESULT_ROOT"

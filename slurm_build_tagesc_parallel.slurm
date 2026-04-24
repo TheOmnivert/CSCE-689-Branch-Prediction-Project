@@ -1,0 +1,54 @@
+#!/bin/bash
+#
+# Submit with:
+#   sbatch slurm_build_tagesc_parallel.slurm
+#
+# This uses a SLURM job array so each TAGE-SC size variant builds in parallel.
+
+#SBATCH --job-name=champsim-tagesc-build
+#SBATCH --time=02:00:00
+#SBATCH --nodes=1
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=4
+#SBATCH --mem=8G
+#SBATCH --array=0-6%7
+#SBATCH --output=slurm_champsim_build_%A_%a.out
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=shantanu_w@tamu.edu
+
+set -euo pipefail
+
+# Optional: uncomment and set your project allocation if required.
+##SBATCH --account=YOUR_ALLOCATION
+
+# Optional: set a specific partition if your lab requires one.
+##SBATCH --partition=short
+
+PROJECT_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
+cd "$PROJECT_DIR"
+
+VARIANTS=(24kb 48kb 96kb 192kb 384kb 768kb 1536kb)
+VARIANT="${VARIANTS[$SLURM_ARRAY_TASK_ID]}"
+
+echo "Job ID           : ${SLURM_JOB_ID}"
+echo "Array Job/Task   : ${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
+echo "Variant          : ${VARIANT}"
+echo "Submit directory : ${PROJECT_DIR}"
+echo "CPUs per task    : ${SLURM_CPUS_PER_TASK:-4}"
+
+# Build artifacts go to node-local tmp if available, else to /tmp.
+TMP_BASE="${TMPDIR:-/tmp}/champsim_build_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
+mkdir -p "$TMP_BASE"
+
+# Final binaries are written to shared project bin/ directory.
+FINAL_BIN_DIR="${PROJECT_DIR}/bin"
+mkdir -p "$FINAL_BIN_DIR"
+
+./build_all_tagesc.sh \
+  -v "$VARIANT" \
+  -j "${SLURM_CPUS_PER_TASK:-4}" \
+  -p "$TMP_BASE" \
+  -o "$FINAL_BIN_DIR"
+
+echo "Done building ${VARIANT}. Output binary:"
+ls -lh "${FINAL_BIN_DIR}/champsim_seznec_tagesc_${VARIANT}"

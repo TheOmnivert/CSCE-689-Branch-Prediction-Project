@@ -141,6 +141,9 @@ get_module_list = $(foreach mod_type,$1,$(call get_object_list,$(mod_type),$(cal
 
 # The base modules shipped with ChampSim
 base_module_objs = $(call get_module_list, $(module_dirs))
+ifeq ($(NO_BASE_MODULES),1)
+base_module_objs :=
+endif
 
 # The module objects that are not base
 nonbase_module_objs =
@@ -208,8 +211,9 @@ $(OBJ_ROOT)/legacy_bridge.h: $$(call legacy_bridge_prereqs,$$(dir $(base_module_
 # Generated configuration makefile contains:
 #  - $(executable_name), the list of all executables in the configuration
 #  - All dependencies and flags assigned according to the modules
+CONFIG_MK ?= _configuration.mk
 ifeq (,$(filter clean compile_commands_clean configclean pytest maketest, $(MAKECMDGOALS)))
-include _configuration.mk
+include $(CONFIG_MK)
 endif
 
 all: $(executable_name)

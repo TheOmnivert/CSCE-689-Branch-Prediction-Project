@@ -27,50 +27,6 @@ set -euo pipefail
 PROJECT_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
 cd "$PROJECT_DIR"
 
-# One-time serialized setup for all array tasks:
-# - ensure vcpkg deps exist
-# - regenerate absolute.options (shared response file) to avoid stale/corrupt includes
-VCPKG_HEADER="$PROJECT_DIR/vcpkg_installed/x64-linux/include/fmt/core.h"
-LOCKFILE="$PROJECT_DIR/.vcpkg-install.lock"
-exec 9>"$LOCKFILE"
-flock 9
-
-if [[ ! -x "$PROJECT_DIR/vcpkg/vcpkg" ]]; then
-  "$PROJECT_DIR/vcpkg/bootstrap-vcpkg.sh"
-fi
-
-if [[ ! -f "$VCPKG_HEADER" ]]; then
-  echo "vcpkg dependencies missing; installing x64-linux triplet..."
-  # Grace toolchains may pair newer GCC with older assembler; force DWARF-4.
-  export CFLAGS="${CFLAGS:-} -gdwarf-4"
-  export CXXFLAGS="${CXXFLAGS:-} -gdwarf-4"
-  export VCPKG_C_FLAGS="${VCPKG_C_FLAGS:-} -gdwarf-4"
-  export VCPKG_CXX_FLAGS="${VCPKG_CXX_FLAGS:-} -gdwarf-4"
-  export VCPKG_C_FLAGS_DEBUG="${VCPKG_C_FLAGS_DEBUG:-} -gdwarf-4"
-  export VCPKG_CXX_FLAGS_DEBUG="${VCPKG_CXX_FLAGS_DEBUG:-} -gdwarf-4"
-  if ! "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed"; then
-    echo "vcpkg install failed; cleaning stale detect_compiler/bzip2 trees and retrying once..."
-    rm -rf "$PROJECT_DIR/vcpkg/buildtrees/detect_compiler" "$PROJECT_DIR/vcpkg/buildtrees/bzip2" \
-      "$PROJECT_DIR/vcpkg/packages/bzip2_x64-linux" "$PROJECT_DIR/vcpkg/packages/bzip2_x64-linux-dbg"
-    "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed" || {
-      echo "vcpkg install failed after retry. Check detailed logs under:" >&2
-      echo "  $PROJECT_DIR/vcpkg/buildtrees/*/" >&2
-      exit 1
-    }
-  fi
-fi
-
-rm -f "$PROJECT_DIR/absolute.options"
-make -C "$PROJECT_DIR" absolute.options
-
-if [[ ! -f "$VCPKG_HEADER" ]]; then
-  echo "ERROR: Missing dependency header after setup: $VCPKG_HEADER" >&2
-  exit 1
-fi
-
-# Setup complete; allow other array tasks to continue.
-flock -u 9
-
 VARIANTS=(24kb 48kb 96kb 192kb 384kb 768kb 1536kb)
 VARIANT="${VARIANTS[$SLURM_ARRAY_TASK_ID]}"
 
@@ -78,7 +34,7 @@ echo "Job ID           : ${SLURM_JOB_ID}"
 echo "Array Job/Task   : ${SLURM_ARRAY_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
 echo "Variant          : ${VARIANT}"
 echo "Submit directory : ${PROJECT_DIR}"
-echo "CPUs per task    : ${SLURM_CPUS_PER_TASK:-4}"
+echo "CPUs per task    : ${SLURM_CPUS_PER_TASK:-1}"
 
 TMP_BASE="${TMPDIR:-/tmp}/champsim_jimenez_mpp_build_${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}"
 mkdir -p "$TMP_BASE"

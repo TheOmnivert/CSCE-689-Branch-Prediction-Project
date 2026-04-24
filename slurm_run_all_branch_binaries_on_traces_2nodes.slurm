@@ -114,13 +114,13 @@ for bin in "${BINARIES[@]}"; do
       "$trace" \
       >"$out_file" 2>&1 &
 
-    ((total++))
-    ((in_flight++))
+    total=$((total + 1))
+    in_flight=$((in_flight + 1))
 
     # Keep exactly MAX_PARALLEL single-core runs active.
     if (( in_flight >= MAX_PARALLEL )); then
       wait -n
-      ((in_flight--))
+      in_flight=$((in_flight - 1))
     fi
 
     if (( total % 50 == 0 )); then
@@ -131,7 +131,7 @@ done
 
 while (( in_flight > 0 )); do
   wait -n
-  ((in_flight--))
+  in_flight=$((in_flight - 1))
 done
 
 echo "All runs completed."

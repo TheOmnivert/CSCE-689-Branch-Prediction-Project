@@ -27,22 +27,29 @@ set -euo pipefail
 PROJECT_DIR="${SLURM_SUBMIT_DIR:-$PWD}"
 cd "$PROJECT_DIR"
 
-# Ensure required third-party headers/libs (fmt, cli11, etc.) exist.
-# On fresh HPRC clones, vcpkg_installed may be absent.
+# One-time serialized setup for all array tasks:
+# - ensure vcpkg deps exist
+# - regenerate absolute.options (shared response file) to avoid stale/corrupt includes
 VCPKG_HEADER="$PROJECT_DIR/vcpkg_installed/x64-linux/include/fmt/core.h"
-if [[ ! -f "$VCPKG_HEADER" ]]; then
-  echo "vcpkg dependencies missing; preparing toolchain..."
-  LOCKFILE="$PROJECT_DIR/.vcpkg-install.lock"
-  exec 9>"$LOCKFILE"
-  flock 9
+LOCKFILE="$PROJECT_DIR/.vcpkg-install.lock"
+exec 9>"$LOCKFILE"
+flock 9
 
-  # Re-check inside lock in case another array task completed setup.
-  if [[ ! -f "$VCPKG_HEADER" ]]; then
-    if [[ ! -x "$PROJECT_DIR/vcpkg/vcpkg" ]]; then
-      "$PROJECT_DIR/vcpkg/bootstrap-vcpkg.sh"
-    fi
-    "$PROJECT_DIR/vcpkg/vcpkg" install --x-install-root="$PROJECT_DIR/vcpkg_installed"
-  fi
+if [[ ! -x "$PROJECT_DIR/vcpkg/vcpkg" ]]; then
+  "$PROJECT_DIR/vcpkg/bootstrap-vcpkg.sh"
+fi
+
+if [[ ! -f "$VCPKG_HEADER" ]]; then
+  echo "vcpkg dependencies missing; installing x64-linux triplet..."
+  "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed"
+fi
+
+rm -f "$PROJECT_DIR/absolute.options"
+make -C "$PROJECT_DIR" absolute.options
+
+if [[ ! -f "$VCPKG_HEADER" ]]; then
+  echo "ERROR: Missing dependency header after setup: $VCPKG_HEADER" >&2
+  exit 1
 fi
 
 VARIANTS=(24kb 48kb 96kb 192kb 384kb 768kb 1536kb)

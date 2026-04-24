@@ -11,7 +11,7 @@
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=4
 #SBATCH --mem=8G
-#SBATCH --array=0-6%7
+#SBATCH --array=0-6
 #SBATCH --output=slurm_champsim_build_%A_%a.out
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=shantanu_w@tamu.edu
@@ -48,12 +48,16 @@ if [[ ! -f "$VCPKG_HEADER" ]]; then
   export VCPKG_CXX_FLAGS="${VCPKG_CXX_FLAGS:-} -gdwarf-4"
   export VCPKG_C_FLAGS_DEBUG="${VCPKG_C_FLAGS_DEBUG:-} -gdwarf-4"
   export VCPKG_CXX_FLAGS_DEBUG="${VCPKG_CXX_FLAGS_DEBUG:-} -gdwarf-4"
-  export VCPKG_MAX_CONCURRENCY="${VCPKG_MAX_CONCURRENCY:-8}"
-  "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed" || {
-    echo "vcpkg install failed. Check detailed logs under:" >&2
-    echo "  $PROJECT_DIR/vcpkg/buildtrees/*/" >&2
-    exit 1
-  }
+  if ! "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed"; then
+    echo "vcpkg install failed; cleaning stale detect_compiler/bzip2 trees and retrying once..."
+    rm -rf "$PROJECT_DIR/vcpkg/buildtrees/detect_compiler" "$PROJECT_DIR/vcpkg/buildtrees/bzip2" \
+      "$PROJECT_DIR/vcpkg/packages/bzip2_x64-linux" "$PROJECT_DIR/vcpkg/packages/bzip2_x64-linux-dbg"
+    "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed" || {
+      echo "vcpkg install failed after retry. Check detailed logs under:" >&2
+      echo "  $PROJECT_DIR/vcpkg/buildtrees/*/" >&2
+      exit 1
+    }
+  fi
 fi
 
 rm -f "$PROJECT_DIR/absolute.options"
@@ -63,6 +67,9 @@ if [[ ! -f "$VCPKG_HEADER" ]]; then
   echo "ERROR: Missing dependency header after setup: $VCPKG_HEADER" >&2
   exit 1
 fi
+
+# Setup complete; allow other array tasks to continue.
+flock -u 9
 
 VARIANTS=(24kb 48kb 96kb 192kb 384kb 768kb 1536kb)
 VARIANT="${VARIANTS[$SLURM_ARRAY_TASK_ID]}"

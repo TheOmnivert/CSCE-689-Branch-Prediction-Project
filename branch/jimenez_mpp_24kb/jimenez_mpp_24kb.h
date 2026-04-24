@@ -1,5 +1,5 @@
-#ifndef BRANCH_JIMENEZ_MPP_H
-#define BRANCH_JIMENEZ_MPP_H
+#ifndef BRANCH_JIMENEZ_MPP_24KB_H
+#define BRANCH_JIMENEZ_MPP_24KB_H
 
 #include <cstdint>
 #include <deque>
@@ -11,7 +11,7 @@
 #include "cbp2016_tage_sc_l.h"
 #include "my_cond_branch_predictor.h"
 
-class jimenez_mpp : public champsim::modules::branch_predictor
+class jimenez_mpp_24kb : public champsim::modules::branch_predictor
 {
 public:
   using branch_predictor::branch_predictor;

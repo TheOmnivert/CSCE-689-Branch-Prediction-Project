@@ -41,6 +41,13 @@ fi
 
 if [[ ! -f "$VCPKG_HEADER" ]]; then
   echo "vcpkg dependencies missing; installing x64-linux triplet..."
+  # Grace toolchains may pair newer GCC with older assembler; force DWARF-4.
+  export CFLAGS="${CFLAGS:-} -gdwarf-4"
+  export CXXFLAGS="${CXXFLAGS:-} -gdwarf-4"
+  export VCPKG_C_FLAGS="${VCPKG_C_FLAGS:-} -gdwarf-4"
+  export VCPKG_CXX_FLAGS="${VCPKG_CXX_FLAGS:-} -gdwarf-4"
+  export VCPKG_C_FLAGS_DEBUG="${VCPKG_C_FLAGS_DEBUG:-} -gdwarf-4"
+  export VCPKG_CXX_FLAGS_DEBUG="${VCPKG_CXX_FLAGS_DEBUG:-} -gdwarf-4"
   export VCPKG_MAX_CONCURRENCY="${VCPKG_MAX_CONCURRENCY:-8}"
   "$PROJECT_DIR/vcpkg/vcpkg" install --triplet x64-linux --x-install-root="$PROJECT_DIR/vcpkg_installed" || {
     echo "vcpkg install failed. Check detailed logs under:" >&2
